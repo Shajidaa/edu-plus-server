@@ -3,7 +3,7 @@ var cors = require("cors");
 require("dotenv").config();
 const admin = require("firebase-admin");
 const app = express();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 3000;
 
 const decoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString(
@@ -100,7 +100,7 @@ async function run() {
       res.send({ role: result?.role });
     });
 
-    //tuitions apis
+    // *********************tuitions apis post*************//
     app.post("/tuitions", verifyJWT, verifyStudent, async (req, res) => {
       const tuitionsData = req.body;
       tuitionsData.status = "pending";
@@ -108,9 +108,23 @@ async function run() {
       const result = await tuitionCollection.insertOne(tuitionsData);
       res.send(result);
     });
+    // *********************tuitions apis get*************//
+    app.get("/tuitions", verifyJWT, verifyStudent, async (req, res) => {
+      const email = req.tokenEmail;
+      const result = await tuitionCollection
+        .find({
+          studentEmail: email,
+        })
+        .toArray();
+      res.send(result);
+    });
+    // *********************tuitions apis update*************//
+    // *********************tuitions apis delete*************//
+    app.delete("/tuitions/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await tuitionCollection.deleteOne(query);
 
-    app.get("/tuitions", async (req, res) => {
-      const result = await tuitionCollection.find().toArray();
       res.send(result);
     });
 
