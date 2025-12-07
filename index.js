@@ -1,23 +1,36 @@
 const express = require("express");
 var cors = require("cors");
 require("dotenv").config();
-
+const admin = require("firebase-admin");
 const app = express();
-const port = 3000;
-
 const { MongoClient, ServerApiVersion } = require("mongodb");
+const port = process.env.PORT || 3000;
 
-app.use(cors());
+const decoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString(
+  "utf-8"
+);
+const serviceAccount = JSON.parse(decoded);
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+app.use(
+  cors({
+    origin: process.env.CLIENT_DOMAIN,
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
 const verifyJWT = async (req, res, next) => {
   const token = req?.headers?.authorization?.split(" ")[1];
-  console.log(token);
+  console.log("token-->", token);
   if (!token) return res.status(401).send({ message: "Unauthorized Access!" });
   try {
     const decoded = await admin.auth().verifyIdToken(token);
     req.tokenEmail = decoded.email;
-    console.log(decoded);
+    console.log("decoded ----->", decoded);
     next();
   } catch (err) {
     console.log(err);
@@ -25,7 +38,6 @@ const verifyJWT = async (req, res, next) => {
   }
 };
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(process.env.MONGODB_URI, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -66,13 +78,16 @@ async function run() {
     });
     //user get by role
 
-    app.get("/user/role", async (req, res) => {
-      const result = await usersCollection.findOne();
+    app.get("/user/role", verifyJWT, async (req, res) => {
+      const result = await usersCollection.findOne({ email: req.tokenEmail });
+      // console.log("user role ------>", result);
+
+      res.send({ role: result?.role });
     });
     //tuitions apis
     app.post("/tuitions", async (req, res) => {
       const tuitionsData = req.body;
-      console.log(tuitionsData);
+      // console.log(tuitionsData);
       const result = await tuitionCollection.insertOne(tuitionsData);
       res.send(result);
     });
