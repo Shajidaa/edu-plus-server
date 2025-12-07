@@ -52,6 +52,21 @@ async function run() {
     const usersCollection = db.collection("users");
     const tuitionCollection = db.collection("tuitions");
 
+    // ******************role middlewares**************//
+
+    const verifyStudent = async (req, res, next) => {
+      const email = req.tokenEmail;
+      console.log(email);
+
+      const user = await usersCollection.findOne({ email });
+      if (user?.role !== "student") {
+        return res
+          .status(403)
+          .send({ message: "Student only go!", role: user?.role });
+      }
+      next();
+    };
+
     //user api
     app.post("/users", async (req, res) => {
       try {
@@ -84,9 +99,11 @@ async function run() {
 
       res.send({ role: result?.role });
     });
+
     //tuitions apis
-    app.post("/tuitions", async (req, res) => {
+    app.post("/tuitions", verifyJWT, verifyStudent, async (req, res) => {
       const tuitionsData = req.body;
+      tuitionsData.status = "pending";
       // console.log(tuitionsData);
       const result = await tuitionCollection.insertOne(tuitionsData);
       res.send(result);
