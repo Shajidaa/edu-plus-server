@@ -165,7 +165,7 @@ async function run() {
       res.send(result);
     });
     // *********************tuitions apis update*************//
-    app.patch("/tuitions/:id", async (req, res) => {
+    app.patch("/tuitions/:id", verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const updatedData = req.body;
 
