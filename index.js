@@ -114,7 +114,6 @@ async function run() {
 
     // ********************* all tuitions get*************//
 
-    // Example: GET /all-tuitions?admin=true
     app.get("/all-tuitions", async (req, res) => {
       const isAdmin = req.query.admin === "true";
       const filter = isAdmin ? {} : { status: "approved" };
@@ -123,6 +122,28 @@ async function run() {
         .sort({ created_at: -1 })
         .toArray();
       res.send(result);
+    });
+
+    // *********************tuitions apis status update*************//
+
+    app.patch("/tuition-status/:id", async (req, res) => {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      try {
+        const result = await tuitionCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { status: status } }
+        );
+
+        if (result.modifiedCount > 0) {
+          res.send({ success: true });
+        } else {
+          res.send({ success: false, message: "No document updated" });
+        }
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
     });
 
     // *********************tuitions apis post*************//
