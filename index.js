@@ -25,12 +25,12 @@ app.use(express.json());
 
 const verifyJWT = async (req, res, next) => {
   const token = req?.headers?.authorization?.split(" ")[1];
-  console.log("token-->", token);
+  // console.log("token-->", token);
   if (!token) return res.status(401).send({ message: "Unauthorized Access!" });
   try {
     const decoded = await admin.auth().verifyIdToken(token);
     req.tokenEmail = decoded.email;
-    console.log("decoded ----->", decoded);
+    // console.log("decoded ----->", decoded);
     next();
   } catch (err) {
     console.log(err);
@@ -51,12 +51,12 @@ async function run() {
     const db = client.db("eduPlusDB");
     const usersCollection = db.collection("users");
     const tuitionCollection = db.collection("tuitions");
+    const applicationsCollection = db.collection("applications");
 
     // ******************role middlewares**************//
 
     const verifyStudent = async (req, res, next) => {
       const email = req.tokenEmail;
-      console.log(email);
 
       const user = await usersCollection.findOne({ email });
       if (user?.role !== "student") {
@@ -123,6 +123,24 @@ async function run() {
         .toArray();
       res.send(result);
     });
+    app.get("/tuitions-details/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        const result = await tuitionCollection.findOne({
+          _id: new ObjectId(id),
+        });
+
+        if (!result) {
+          return res.status(404).send({ message: "Tuition not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching tuition:", error);
+        res.status(500).send({ message: "Server error" });
+      }
+    });
 
     // *********************tuitions apis status update*************//
 
@@ -150,22 +168,27 @@ async function run() {
     app.post("/tuitions", verifyJWT, verifyStudent, async (req, res) => {
       const tuitionsData = req.body;
       tuitionsData.status = "pending";
-      // console.log(tuitionsData);
+      tuitionsData.created_at = new Date();
       const result = await tuitionCollection.insertOne(tuitionsData);
       res.send(result);
     });
     // *********************tuitions apis get*************//
     app.get("/tuitions", verifyJWT, verifyStudent, async (req, res) => {
       const email = req.tokenEmail;
-      const result = await tuitionCollection
-        .find({
-          studentEmail: email,
-        })
-        .toArray();
+      const { status } = req.query;
+
+      const query = { studentEmail: email };
+
+      if (status) {
+        query.status = status;
+      }
+
+      const result = await tuitionCollection.find(query).toArray();
       res.send(result);
     });
+
     // *********************tuitions apis update*************//
-    app.patch("/tuitions/:id", verifyJWT, verifyAdmin, async (req, res) => {
+    app.patch("/tuitions/:id", verifyJWT, verifyStudent, async (req, res) => {
       const id = req.params.id;
       const updatedData = req.body;
 
@@ -182,6 +205,75 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await tuitionCollection.deleteOne(query);
+
+      res.send(result);
+    });
+
+    // *******************************************
+    // ************ Tutor apis ********************
+    // *********************************************//
+
+    app.post("/applications", verifyJWT, async (req, res) => {
+      try {
+        const applicationData = req.body;
+
+        applicationData.appliedAt = new Date();
+        applicationData.applicantEmail = req.tokenEmail;
+        applicationData.status = "pending";
+
+        const result = await applicationsCollection.insertOne(applicationData);
+
+        res.send({
+          success: true,
+          insertedId: result.insertedId,
+        });
+      } catch (error) {
+        console.error("Application submit error:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to submit application",
+        });
+      }
+    });
+
+    app.get("/applications", verifyJWT, async (req, res) => {
+      const email = req.email;
+      const result = await applicationsCollection.find({ email }).toArray();
+      res.send(result);
+    });
+
+    app.get("/my-applications", verifyJWT, async (req, res) => {
+      const email = req.tokenEmail;
+
+      const result = await applicationsCollection
+        .find({ studentEmail: email })
+        .toArray();
+
+      res.send(result);
+    });
+
+    app.patch("/applications/status/:id", verifyJWT, async (req, res) => {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      const result = await applicationsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        {
+          $set: { status: status },
+        }
+      );
+
+      res.send(result);
+    });
+    app.get("/tutor-ongoing-tuitions", verifyJWT, async (req, res) => {
+      const tutorEmail = req.tokenEmail;
+
+      const result = await applicationsCollection
+        .find({
+          tutorEmail: tutorEmail,
+          status: "approved",
+        })
+        .toArray();
 
       res.send(result);
     });
