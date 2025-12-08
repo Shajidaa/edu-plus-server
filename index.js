@@ -66,6 +66,18 @@ async function run() {
       }
       next();
     };
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.tokenEmail;
+      console.log(email);
+
+      const user = await usersCollection.findOne({ email });
+      if (user?.role !== "admin") {
+        return res
+          .status(403)
+          .send({ message: "admin only go!", role: user?.role });
+      }
+      next();
+    };
 
     //user api
     app.post("/users", async (req, res) => {
@@ -98,6 +110,19 @@ async function run() {
       // console.log("user role ------>", result);
 
       res.send({ role: result?.role });
+    });
+
+    // ********************* all tuitions get*************//
+
+    // Example: GET /all-tuitions?admin=true
+    app.get("/all-tuitions", async (req, res) => {
+      const isAdmin = req.query.admin === "true";
+      const filter = isAdmin ? {} : { status: "approved" };
+      const result = await tuitionCollection
+        .find(filter)
+        .sort({ created_at: -1 })
+        .toArray();
+      res.send(result);
     });
 
     // *********************tuitions apis post*************//
