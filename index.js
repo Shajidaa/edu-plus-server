@@ -240,8 +240,10 @@ async function run() {
     });
 
     app.get("/applications", verifyJWT, async (req, res) => {
-      const email = req.email;
-      const result = await applicationsCollection.find({ email }).toArray();
+      const email = req.tokenEmail;
+      const result = await applicationsCollection
+        .find({ tutorEmail: email })
+        .toArray();
       res.send(result);
     });
 
@@ -268,6 +270,7 @@ async function run() {
 
       res.send(result);
     });
+
     app.get("/tutor-ongoing-tuitions", verifyJWT, async (req, res) => {
       const tutorEmail = req.tokenEmail;
 
@@ -278,6 +281,17 @@ async function run() {
         })
         .toArray();
 
+      res.send(result);
+    });
+    app.get("/payment-tutor", verifyJWT, async (req, res) => {
+      const email = req.tokenEmail;
+      // console.log("payment  email ----------->", email);
+
+      const result = await paymentsCollection
+        .find({
+          tutorEmail: email,
+        })
+        .toArray();
       res.send(result);
     });
     // *******************************************
