@@ -114,11 +114,43 @@ async function run() {
 
       res.send({ role: result?.role });
     });
-
+    // *******************************************
+    // ************ Admin  apis ********************
+    // *********************************************//
     app.get("/all-users", verifyJWT, verifyAdmin, async (req, res) => {
-      const result = await usersCollection.find().toArray();
+      const result = await usersCollection
+        .find()
+        .sort({ created_at: -1 })
+        .toArray();
       res.send(result);
     });
+    app.get("/users-details/:id", verifyJWT, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const result = await usersCollection.findOne({ _id: new ObjectId(id) });
+
+      res.send(result);
+    });
+    app.put("/users/:id", verifyJWT, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const updatedData = req.body;
+      const result = await usersCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updatedData }
+      );
+
+      res.send(result);
+    });
+    app.delete("/users/:id", verifyJWT, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+
+      const result = await usersCollection.deleteOne({ _id: new ObjectId(id) });
+
+      res.send(result);
+    });
+
+    // *******************************************
+    // ************ tuitions apis ********************
+    // *********************************************//
     // ********************* all tuitions get*************//
 
     app.get("/all-tuitions", verifyJWT, verifyAdmin, async (req, res) => {
