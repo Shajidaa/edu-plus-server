@@ -130,7 +130,8 @@ async function run() {
 
       res.send(result);
     });
-    app.put("/users/:id", verifyJWT, verifyAdmin, async (req, res) => {
+
+    app.patch("/users/:id", verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const updatedData = req.body;
       const result = await usersCollection.updateOne(
@@ -140,6 +141,7 @@ async function run() {
 
       res.send(result);
     });
+
     app.delete("/users/:id", verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
 
@@ -147,13 +149,16 @@ async function run() {
 
       res.send(result);
     });
-
+    app.get("/all-payment", verifyJWT, verifyAdmin, async (req, res) => {
+      const result = await paymentsCollection.find().toArray();
+      res.send(result);
+    });
     // *******************************************
     // ************ tuitions apis ********************
     // *********************************************//
     // ********************* all tuitions get*************//
 
-    app.get("/all-tuitions", verifyJWT, verifyAdmin, async (req, res) => {
+    app.get("/all-tuitions", async (req, res) => {
       const isAdmin = req.query.admin === "true";
       const filter = isAdmin ? {} : { status: "approved" };
       const result = await tuitionCollection
