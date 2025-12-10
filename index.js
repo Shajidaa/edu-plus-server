@@ -115,9 +115,13 @@ async function run() {
       res.send({ role: result?.role });
     });
 
+    app.get("/all-users", verifyJWT, verifyAdmin, async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
     // ********************* all tuitions get*************//
 
-    app.get("/all-tuitions", async (req, res) => {
+    app.get("/all-tuitions", verifyJWT, verifyAdmin, async (req, res) => {
       const isAdmin = req.query.admin === "true";
       const filter = isAdmin ? {} : { status: "approved" };
       const result = await tuitionCollection
