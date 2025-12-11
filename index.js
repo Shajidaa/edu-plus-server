@@ -71,7 +71,6 @@ async function run() {
     };
     const verifyAdmin = async (req, res, next) => {
       const email = req.tokenEmail;
-      console.log(email);
 
       const user = await usersCollection.findOne({ email });
       if (user?.role !== "admin") {
@@ -110,10 +109,20 @@ async function run() {
 
     app.get("/user/role", verifyJWT, async (req, res) => {
       const result = await usersCollection.findOne({ email: req.tokenEmail });
-      // console.log("user role ------>", result);
 
       res.send({ role: result?.role });
     });
+    app.get("/tutors", async (req, res) => {
+      try {
+        const tutors = await usersCollection.find({ role: "tutor" }).toArray();
+
+        res.send(tutors);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to fetch tutors" });
+      }
+    });
+
     // *******************************************
     // ************ Admin  apis ********************
     // *********************************************//
@@ -124,6 +133,7 @@ async function run() {
         .toArray();
       res.send(result);
     });
+
     app.get("/users-details/:id", verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const result = await usersCollection.findOne({ _id: new ObjectId(id) });
@@ -167,6 +177,54 @@ async function run() {
         .toArray();
       res.send(result);
     });
+
+    app.get("/all-tuition", async (req, res) => {
+      try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        // Admin filter
+        const isAdmin = req.query.admin === "true";
+        const filter = isAdmin ? {} : { status: "approved" };
+
+        const total = await tuitionCollection.countDocuments(filter);
+
+        // Fetch paginated data
+        const tuitions = await tuitionCollection
+          .find(filter)
+          .sort({ created_at: -1 })
+          .skip(skip)
+          .limit(limit)
+          .toArray();
+
+        res.send({
+          success: true,
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+          tuitions,
+        });
+      } catch (error) {
+        console.error("Error fetching tuitions:", error);
+        res
+          .status(500)
+          .send({ success: false, message: "Internal server error" });
+      }
+    });
+
+    app.get("/latest-tuitions", async (req, res) => {
+      const isAdmin = req.query.admin === "true";
+      const filter = isAdmin ? {} : { status: "approved" };
+      const result = await tuitionCollection
+        .find(filter)
+        .sort({ created_at: -1 })
+        .limit(6)
+        .toArray();
+      res.send(result);
+    });
+
     app.get("/tuitions-details/:id", async (req, res) => {
       try {
         const id = req.params.id;
@@ -467,6 +525,10 @@ async function run() {
         .toArray();
       res.send(result);
     });
+
+    // *********************************************//
+    // // *********************************************//
+    // // *********************************************//
 
     await client.db("admin").command({ ping: 1 });
     console.log(
