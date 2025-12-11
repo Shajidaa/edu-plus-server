@@ -122,6 +122,18 @@ async function run() {
         res.status(500).send({ error: "Failed to fetch tutors" });
       }
     });
+    app.get("/tutors/:id", async (req, res) => {
+      const id = req.params.id;
+
+      try {
+        const tutors = await usersCollection.findOne({ _id: new ObjectId(id) });
+
+        res.send(tutors);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to fetch tutors" });
+      }
+    });
 
     // *******************************************
     // ************ Admin  apis ********************
