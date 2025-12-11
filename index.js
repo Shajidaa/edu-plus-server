@@ -82,29 +82,56 @@ async function run() {
     };
 
     //user api
+    // app.post("/users", async (req, res) => {
+    //   try {
+    //     const userData = req.body;
+    //     userData.created_at = new Date().toString();
+    //     userData.last_loggedIn = new Date().toString();
+    //     const query = {
+    //       email: userData.email,
+    //     };
+    //     const alreadyExists = await usersCollection.findOne(query);
+    //     if (alreadyExists) {
+    //       const result = await usersCollection.updateOne(query, {
+    //         $set: {
+    //           last_loggedIn: new Date().toString(),
+    //         },
+    //       });
+    //       return res.send(result);
+    //     }
+    //     const result = await usersCollection.insertOne(userData);
+    //     res.send(result);
+    //   } catch (error) {
+    //     res.status(500).json({ message: error.message });
+    //   }
+    // });
     app.post("/users", async (req, res) => {
       try {
         const userData = req.body;
         userData.created_at = new Date().toString();
         userData.last_loggedIn = new Date().toString();
-        const query = {
-          email: userData.email,
-        };
+
+        if (!userData.role) {
+          userData.role = "student";
+        }
+
+        const query = { email: userData.email };
         const alreadyExists = await usersCollection.findOne(query);
+
         if (alreadyExists) {
           const result = await usersCollection.updateOne(query, {
-            $set: {
-              last_loggedIn: new Date().toString(),
-            },
+            $set: { last_loggedIn: new Date().toString() },
           });
           return res.send(result);
         }
+
         const result = await usersCollection.insertOne(userData);
         res.send(result);
       } catch (error) {
         res.status(500).json({ message: error.message });
       }
     });
+
     //user get by role
 
     app.get("/user/role", verifyJWT, async (req, res) => {
@@ -115,6 +142,20 @@ async function run() {
     app.get("/tutors", async (req, res) => {
       try {
         const tutors = await usersCollection.find({ role: "tutor" }).toArray();
+
+        res.send(tutors);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to fetch tutors" });
+      }
+    });
+    app.get("/latest-tutors", async (req, res) => {
+      try {
+        const tutors = await usersCollection
+          .find({ role: "tutor" })
+          .sort({ created_at: -1 })
+          .limit(6)
+          .toArray();
 
         res.send(tutors);
       } catch (error) {
