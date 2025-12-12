@@ -16,9 +16,15 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
+// app.use(
+//   cors({
+//     origin: process.env.CLIENT_DOMAIN,
+//     credentials: true,
+//   })
+// );
 app.use(
   cors({
-    origin: process.env.CLIENT_DOMAIN,
+    origin: "http://localhost:5173",
     credentials: true,
   })
 );
@@ -131,6 +137,75 @@ async function run() {
         res.status(500).json({ message: error.message });
       }
     });
+    // app.post("/users", async (req, res) => {
+    //   try {
+    //     const userData = req.body;
+
+    //     userData.created_at = new Date().toString();
+    //     userData.last_loggedIn = new Date().toString();
+
+    //     if (!userData.role) {
+    //       userData.role = "student";
+    //     }
+
+    //     const query = { email: userData.email };
+    //     const alreadyExists = await usersCollection.findOne(query);
+
+    //     if (alreadyExists) {
+    //       const result = await usersCollection.updateOne(query, {
+    //         $set: { last_loggedIn: new Date().toString() },
+    //       });
+    //       return res.send(result);
+    //     }
+
+    //     const result = await usersCollection.insertOne(userData);
+    //     res.send(result);
+    //   } catch (error) {
+    //     res.status(500).json({ message: error.message });
+    //   }
+    // });
+
+    app.get("/all-tuitions", async (req, res) => {
+      try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const { class: className, subject, location } = req.query;
+
+        // Admin filter
+        const isAdmin = req.query.admin === "true";
+        let filter = isAdmin ? {} : { status: "approved" };
+
+        // Add filters if provided
+        if (className) filter.tuitionClass = className;
+        if (subject) filter.tuitionSubject = subject;
+        if (location) filter.location = location;
+
+        const total = await tuitionCollection.countDocuments(filter);
+
+        const tuitions = await tuitionCollection
+          .find(filter)
+          .sort({ created_at: -1 })
+          .skip(skip)
+          .limit(limit)
+          .toArray();
+
+        res.send({
+          success: true,
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+          tuitions,
+        });
+      } catch (error) {
+        console.error("Error fetching tuitions:", error);
+        res
+          .status(500)
+          .send({ success: false, message: "Internal server error" });
+      }
+    });
 
     //user get by role
 
@@ -221,7 +296,7 @@ async function run() {
     // *********************************************//
     // ********************* all tuitions get*************//
 
-    app.get("/all-tuitions", async (req, res) => {
+    app.get("/all-tuitions-admin", async (req, res) => {
       const isAdmin = req.query.admin === "true";
       const filter = isAdmin ? {} : { status: "approved" };
       const result = await tuitionCollection
@@ -408,6 +483,15 @@ async function run() {
 
       res.send(result);
     });
+    app.get("/my-applications/:id", verifyJWT, async (req, res) => {
+      const id = req.params.id;
+
+      const result = await applicationsCollection.findOne({
+        _id: new ObjectId(id),
+      });
+
+      res.send(result);
+    });
 
     app.patch("/applications/status/:id", verifyJWT, async (req, res) => {
       const { id } = req.params;
@@ -463,7 +547,7 @@ async function run() {
 
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],
-
+        customer_email: studentEmail,
         line_items: [
           {
             price_data: {
@@ -487,7 +571,7 @@ async function run() {
           subject,
         },
 
-        success_url: `${process.env.CLIENT_DOMAIN}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+        success_url: `${process.env.CLIENT_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.CLIENT_DOMAIN}/dashboard/applied-tutors`,
       });
 
