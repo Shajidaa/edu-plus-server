@@ -16,18 +16,18 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-// app.use(
-//   cors({
-//     origin: process.env.CLIENT_DOMAIN,
-//     credentials: true,
-//   })
-// );
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.CLIENT_DOMAIN,
     credentials: true,
   })
 );
+// app.use(
+//   cors({
+//     origin: "http://localhost:5173",
+//     credentials: true,
+//   })
+// );
 
 app.use(express.json());
 
@@ -667,10 +667,10 @@ async function run() {
     // // *********************************************//
     // // *********************************************//
 
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+    // await client.db("admin").command({ ping: 1 });
+    // console.log(
+    //   "Pinged your deployment. You successfully connected to MongoDB!"
+    // );
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
