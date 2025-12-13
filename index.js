@@ -22,12 +22,6 @@ app.use(
     credentials: true,
   })
 );
-// app.use(
-//   cors({
-//     origin: "http://localhost:5173",
-//     credentials: true,
-//   })
-// );
 
 app.use(express.json());
 
@@ -72,6 +66,17 @@ async function run() {
         return res
           .status(403)
           .send({ message: "Student only go!", role: user?.role });
+      }
+      next();
+    };
+    const verifyTutor = async (req, res, next) => {
+      const email = req.tokenEmail;
+
+      const user = await usersCollection.findOne({ email });
+      if (user?.role !== "tutor") {
+        return res
+          .status(403)
+          .send({ message: "tutor only go!", role: user?.role });
       }
       next();
     };
@@ -466,7 +471,7 @@ async function run() {
       }
     });
 
-    app.get("/applications", verifyJWT, async (req, res) => {
+    app.get("/applications", verifyJWT, verifyTutor, async (req, res) => {
       const email = req.tokenEmail;
       const result = await applicationsCollection
         .find({ tutorEmail: email })
@@ -507,19 +512,24 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/tutor-ongoing-tuitions", verifyJWT, async (req, res) => {
-      const tutorEmail = req.tokenEmail;
+    app.get(
+      "/tutor-ongoing-tuitions",
+      verifyJWT,
+      verifyTutor,
+      async (req, res) => {
+        const tutorEmail = req.tokenEmail;
 
-      const result = await applicationsCollection
-        .find({
-          tutorEmail: tutorEmail,
-          status: "approved",
-        })
-        .toArray();
+        const result = await applicationsCollection
+          .find({
+            tutorEmail: tutorEmail,
+            status: "approved",
+          })
+          .toArray();
 
-      res.send(result);
-    });
-    app.get("/payment-tutor", verifyJWT, async (req, res) => {
+        res.send(result);
+      }
+    );
+    app.get("/payment-tutor", verifyJWT, verifyTutor, async (req, res) => {
       const email = req.tokenEmail;
       // console.log("payment  email ----------->", email);
 
