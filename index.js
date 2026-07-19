@@ -1,6 +1,7 @@
 const express = require("express");
 var cors = require("cors");
 require("dotenv").config();
+const { askAgent, createChatSession, chatWithAgent } = require("./ai-agent");
 const admin = require("firebase-admin");
 const app = express();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
@@ -692,6 +693,43 @@ app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
+// In-memory chat sessions (use Redis for production)
+const chatSessions = new Map();
+
+// Single-turn: POST /ai-ask  { message }
+app.post("/ai-ask", async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ error: "message is required" });
+    const reply = await askAgent(message);
+    res.json({ reply });
+  } catch (err) {
+    console.error("AI ask error:", err);
+    res.status(500).json({ error: "AI request failed" });
+  }
+});
+
+// Multi-turn: POST /ai-chat  { sessionId, message }
+app.post("/ai-chat", async (req, res) => {
+  try {
+    const { sessionId, message } = req.body;
+    if (!sessionId || !message)
+      return res.status(400).json({ error: "sessionId and message are required" });
+
+    if (!chatSessions.has(sessionId)) {
+      chatSessions.set(sessionId, createChatSession());
+    }
+
+    const chat = chatSessions.get(sessionId);
+    const reply = await chatWithAgent(chat, message);
+    res.json({ reply, sessionId });
+  } catch (err) {
+    console.error("AI chat error:", err);
+    res.status(500).json({ error: "AI chat failed" });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
+
 });
